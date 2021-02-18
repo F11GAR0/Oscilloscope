@@ -1,0 +1,68 @@
+#######################################
+# Syntax Coloring Map for TFTLCD
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+TFTLCD	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+Color565	KEYWORD2
+drawPixel	KEYWORD2
+fillScreen	KEYWORD2
+drawLine	KEYWORD2
+drawFastLine		KEYWORD2
+drawVerticalLine	KEYWORD2
+drawHorizontalLine	KEYWORD2
+fillTriangle		KEYWORD2
+drawRect		KEYWORD2
+fillRect		KEYWORD2
+drawRoundRect		KEYWORD2
+fillRoundRect		KEYWORD2
+drawCircle		KEYWORD2
+fillCeircle		KEYWORD2
+setCursor		KEYWORD2
+setTextColor		KEYWORD2
+setTextSize		KEYWORD2
+write			KEYWORD2
+drawChar		KEYWORD2
+drawString		KEYWORD2
+initDisplay		KEYWORD2
+goHome			KEYWORD2
+goTo			KEYWORD2
+reset			KEYWORD2
+setRotation		KEYWORD2
+getRotation		KEYWORD2
+writeData		KEYWORD2
+writeCommand		KEYWORD2
+readData		KEYWORD2
+readRegister		KEYWORD2
+writeRegister		KEYWORD2
+width			KEYWORD2
+height			KEYWORD2
+writeData_unsafe	KEYWORD2
+TFTWIDTH		KEYWORD2
+TFTHEIGHT		KEYWORD2
+writeData_unsafe	KEYWORD2
+setWriteDir		KEYWORD2
+setReadDir		KEYWORD2
+write8			KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+BLACK	LITERAL1
+BLUE	LITERAL1
+CYAN	LITERAL1
+GREEN	LITERAL1
+MAGENTA	LITERAL1
+RED	LITERAL1
+WHITE	LITERAL1
+YELLOW	LITERAL1
