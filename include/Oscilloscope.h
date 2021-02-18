@@ -19,8 +19,8 @@
 #define WHITE   0xFFFF
 #define BGCOLOR   BLACK
 #define GRIDCOLOR BLUE
-#define CH1COLOR  BLUE
-#define CH2COLOR  GREEN
+#define CH1COLOR  GREEN
+#define CH2COLOR  BLUE
 
 enum OsciTriggerMode{
     TRIG_AUTO,
@@ -53,7 +53,7 @@ enum OsciRate{
 };
 
 enum OsciRange{
-    RANGE_1V,
+    RANGE_1V = 0,
     RANGE_05V,
     RANGE_02V,
     RANGE_01V,
@@ -70,14 +70,14 @@ typedef void(*OsciButtonCallback)(void*);
 class OsciButton{
     public:
         OsciButton();
-        void Init(int *oscip, int x, int y, int w, int h, int color, char* text);
+        void Init(long *oscip, int x, int y, int w, int h, int color, char* text);
         void SetOnClickCallback(OsciButtonCallback cb);
         void Process();
         void DrawBasics();
         void DrawClicked();
     private:    
         OsciButtonCallback m_cbCallback;
-        int* m_pOscilloscope;
+        long* m_pOscilloscope;
         bool m_bIsCallbackRegistered;
         int m_iXPos;
         int m_iYPos;
@@ -90,7 +90,7 @@ class OsciButton{
 class OscilloscopeUI{
     public:
         OscilloscopeUI();
-        void Init(int *oscip, int dots_div, int lcd_width, int lcd_height);
+        void Init(long *oscip, int dots_div, int lcd_width, int lcd_height);
         void SetChangeTriggerModeCallback(OsciButtonCallback cb);
         void SetChangeModeCallback(OsciButtonCallback cb);
         void SetChangeRateCallback(OsciButtonCallback cb);
@@ -106,7 +106,7 @@ class OscilloscopeUI{
         void SetTextFieldXStartPos(int x);
         void SetTextFieldYStartPos(int y);
 
-        int *m_pOscilloscope;
+        long *m_pOscilloscope;
 
         int m_iTFStartXPos;
         int m_iTFStartYPos;
@@ -130,12 +130,14 @@ class Oscilloscope{
         void LoadUI();
         void Process();
     private:
+        void ClearAndDrawDot(int i);
+
         friend void TriggerModeChange(Oscilloscope*);
         friend void ModeChange(Oscilloscope*);
         friend void RateChange(Oscilloscope*);
         friend void RangeChange(Oscilloscope*);
         friend void EdgeChange(Oscilloscope*);
-
+        inline unsigned long getTransformedVoltage(byte channel);
         OscilloscopeUI m_UI;
 
         OsciTriggerMode m_TriggerMode;
@@ -143,6 +145,11 @@ class Oscilloscope{
         OsciRate m_Rate;
         OsciRange m_Range;
         OsciTriggerEdge m_Edge;
+
+        int m_iDotsDiv;
+        int m_iLCD_WIDTH;
+        int m_iLCD_HEIGHT;
+
 };
 
 #endif

@@ -7,6 +7,14 @@ const char *g_szTriggerModes[] = {" Auto", " Norm", " Scan", " One"};
 const char *g_szRates[] = {"F1-1", "F1-2 ", "F2  ", "5ms", "10ms", "20ms", "50ms", "0.1s", "0.2s", "0.5s", "1s", "2s", "5s", "10s"};
 const char *g_szRanges[] = {"1V ", "0.5V", "0.2V", "0.1V", "50mV"};
 
+const int ad_sw =  3;                    // Analog 3 pin for switches
+const int ad_ch0 = 4;                   // Analog 4 pin for channel 0
+const int ad_ch1 = 5;                   // Analog 5 pin for channel 1
+
+const unsigned long VREF[] = {150, 300, 750, 1500, 3000};
+
+const int g_CorrectionOffset = 204;
+
 OsciButton::OsciButton(){ }
 
 int strlen(char *str){
@@ -32,7 +40,7 @@ void OsciButton::DrawClicked(){
     tft.drawRoundRect(m_iXPos, m_iYPos, m_iWidth, m_iHeight, 4, CYAN);
 }
 
-void OsciButton::Init(int *oscip, int x, int y, int w, int h, int color, char* text){
+void OsciButton::Init(long *oscip, int x, int y, int w, int h, int color, char* text){
     m_iXPos = x;
     m_iYPos = y;
     m_iWidth = w;
@@ -73,7 +81,7 @@ void OsciButton::Process(){
 
 OscilloscopeUI::OscilloscopeUI(){ }
 
-void OscilloscopeUI::Init(int *oscip, int dots_div, int lcd_width, int lcd_height){
+void OscilloscopeUI::Init(long *oscip, int dots_div, int lcd_width, int lcd_height){
     m_iDotsDiv = dots_div;
     m_iLCD_WIDTH = lcd_width;
     m_iLCD_HEIGHT = lcd_height;
@@ -216,12 +224,15 @@ void OscilloscopeUI::ProcessButtons(){
 Oscilloscope::Oscilloscope(){ }
 
 void Oscilloscope::Init(int dots_div, int lcd_width, int lcd_height){
-    m_UI.Init((int*)this, dots_div, lcd_width, lcd_height);
+    m_UI.Init((long*)this, dots_div, lcd_width, lcd_height);
     m_TriggerMode = 0;
     m_Mode = 0;
-    m_Rate = 0;
+    m_Rate = RATE_20MS;
     m_Range = 0;
     m_Edge = 0;
+    m_iDotsDiv = dots_div;
+    m_iLCD_WIDTH = lcd_width;
+    m_iLCD_HEIGHT = lcd_height;
 }
 
 void TriggerModeChange(Oscilloscope* self){
@@ -347,6 +358,41 @@ void Oscilloscope::LoadUI(){
     m_UI.SetChangeEdgeCallback(EdgeChange);
 }
 
+inline unsigned long Oscilloscope::getTransformedVoltage(byte channel){
+    unsigned long a = analogRead(channel);
+    a = ( (a + g_CorrectionOffset) * VREF[(int)m_Range] + 512) >> 10;
+    a = a >= (m_iLCD_HEIGHT + 1) ? m_iLCD_HEIGHT - 1 : a;
+    if (m_Mode == MODE_INV)
+        return m_iLCD_HEIGHT - a;
+    return a;
+}
+
+static short g_WaveTable[2][SAMPLES];
+
+void Oscilloscope::ClearAndDrawDot(int i) {
+    
+    if (i <= 1)
+        return;
+    
+    tft.drawLine(i - 1, m_iLCD_HEIGHT - g_WaveTable[1][i - 1], i, m_iLCD_HEIGHT - g_WaveTable[1][i], BGCOLOR);
+    if (m_Mode != MODE_OFF)
+        tft.drawLine(i - 1, m_iLCD_HEIGHT - g_WaveTable[0][i - 1], i, m_iLCD_HEIGHT - g_WaveTable[0][i], CH1COLOR);
+
+    //DrawGrid(i);
+}
+
+
 void Oscilloscope::Process(){
     m_UI.ProcessButtons();
+    delay(10);
+    for(int i = 0; i < SAMPLES; i++){
+        g_WaveTable[0][i] = getTransformedVoltage(ad_ch1);
+    }
+    for(int i = 0; i < SAMPLES; i++){
+        ClearAndDrawDot(i);
+    }
+    for(int i = 0; i < SAMPLES; i++){
+        g_WaveTable[1][i] = g_WaveTable[0][i];
+    }
+    
 }
