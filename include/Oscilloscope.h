@@ -100,6 +100,7 @@ class OscilloscopeUI{
         void DrawUIBasics(OsciTriggerMode trigger_mode, OsciMode mode, OsciRate rate, OsciRange range, OsciTriggerEdge edge);
         void UpdateTextField(bool only_states, OsciTriggerMode trigger_mode, OsciMode mode, OsciRate rate, OsciRange range, OsciTriggerEdge edge);
         void ProcessButtons();
+        void DrawGrid();
     private:
         void ClearTextField(bool only_states);
         void AddTextToTextField(const char* text, bool new_line, int color, int text_size, int inc = -1, bool set_pos = true);

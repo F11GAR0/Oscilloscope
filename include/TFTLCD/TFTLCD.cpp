@@ -150,16 +150,16 @@ uint16_t ROW_F=110; // TS first row
 uint16_t ROW_L=920; // TS last row
 uint16_t COL_F=110; // TS first column
 uint16_t COL_L=930; // TS last column
-byte ReadTouch(int *rrow, int *rcol) {
+byte TFTLCD::ReadTouch(int *rrow, int *rcol) {
   //Y1 A3  
   //X1 A2   
   //Y2 9   
   //X2 8   
   int16_t row, col;
   int8_t touch, wait_touch, valid;
-  wait_touch=1;
+  wait_touch= 3;
   valid=0;
-  while (wait_touch) {
+  while (--wait_touch > 0) {
     pinMode(Y1, INPUT); 
     pinMode(Y2, INPUT_PULLUP); 
     
@@ -176,9 +176,17 @@ byte ReadTouch(int *rrow, int *rcol) {
       delay(1);
       row = analogRead(Y1);
       delay(4); 
-      if (abs(analogRead(Y1)-row)>3) { return 0;}
+      if (abs(analogRead(Y1)-row)>3) { 
+        setWriteDir();
+        DDRC = DDRC | B00011111; // A0-A4 as outputs  
+        return 0;
+      }
       delay(3);
-      if (abs(analogRead(Y1)-row)>3) { return 0;}
+      if (abs(analogRead(Y1)-row)>3) { 
+        setWriteDir();
+        DDRC = DDRC | B00011111; // A0-A4 as outputs  
+        return 0;
+      }
       //if (analogRead(Y1)!=row) { return 0;}
       
       pinMode(X1, INPUT); 
@@ -193,9 +201,17 @@ byte ReadTouch(int *rrow, int *rcol) {
       delay(1);
       col = analogRead(X1);
       delay(4);  
-      if (abs(analogRead(X1)-col)>3) { return 0;}
+      if (abs(analogRead(X1)-col)>3) { 
+        setWriteDir();
+        DDRC = DDRC | B00011111; // A0-A4 as outputs  
+        return 0;
+      }
       delay(3);
-      if (abs(analogRead(X1)-col)>3) { return 0;}
+      if (abs(analogRead(X1)-col)>3) { 
+        setWriteDir();
+        DDRC = DDRC | B00011111; // A0-A4 as outputs  
+        return 0;
+      }
       //if (analogRead(X1)!=col) { return 0;}
       
       //digitalWrite(Y1, LOW);  // Y variant A
@@ -207,13 +223,19 @@ byte ReadTouch(int *rrow, int *rcol) {
         int16_t cols=COL_L-COL_F;
         float row1=float(row-ROW_F)/rows*240;
         float col1=float(col-COL_F)/cols*320;
-        *rrow=int(row1);
-        *rcol=int(col1);
+        if(rrow && rcol){
+          *rrow=int(row1);
+          *rcol=int(col1);
+        }
         valid=1;
       }
       wait_touch=0;
     }
   }
+   // Re-Set A2 A3 8 9 for ILI9341
+  setWriteDir();
+  DDRC = DDRC | B00011111; // A0-A4 as outputs  
+  
   return valid;
 }
 

@@ -12,6 +12,7 @@ const int ad_ch0 = 4;                   // Analog 4 pin for channel 0
 const int ad_ch1 = 5;                   // Analog 5 pin for channel 1
 
 const unsigned long VREF[] = {150, 300, 750, 1500, 3000};
+const unsigned long VRATES[] = { 1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000};
 
 const int g_CorrectionOffset = 204;
 
@@ -194,11 +195,10 @@ void OscilloscopeUI::UpdateTextField(bool only_states, OsciTriggerMode trigger_m
     }
 }
 
-void OscilloscopeUI::DrawUIBasics(OsciTriggerMode trigger_mode, OsciMode mode, OsciRate rate, OsciRange range, OsciTriggerEdge edge){
+void OscilloscopeUI::DrawGrid(){
     for (int x=0; x<=SAMPLES; x += 2) { // Horizontal Line
       for (int y=0; y <= m_iLCD_HEIGHT; y += m_iDotsDiv) {
         tft.drawPixel(x, y, GRIDCOLOR);
-        //CheckSW();
       }
       if (m_iLCD_HEIGHT == 240)
         tft.drawPixel(x, m_iLCD_HEIGHT - 1, GRIDCOLOR);
@@ -206,10 +206,12 @@ void OscilloscopeUI::DrawUIBasics(OsciTriggerMode trigger_mode, OsciMode mode, O
     for (int x=0; x <= SAMPLES; x += m_iDotsDiv ) { // Vertical Line
       for (int y=0; y <= m_iLCD_HEIGHT; y += 2) {
         tft.drawPixel(x, y, GRIDCOLOR);
-        //CheckSW();
       }
     }
-    
+}
+
+void OscilloscopeUI::DrawUIBasics(OsciTriggerMode trigger_mode, OsciMode mode, OsciRate rate, OsciRange range, OsciTriggerEdge edge){
+    DrawGrid();
     UpdateTextField(false, trigger_mode,mode,rate,range,edge);
 }
 
@@ -360,39 +362,64 @@ void Oscilloscope::LoadUI(){
 
 inline unsigned long Oscilloscope::getTransformedVoltage(byte channel){
     unsigned long a = analogRead(channel);
-    a = ( (a + g_CorrectionOffset) * VREF[(int)m_Range] + 512) >> 10;
-    a = a >= (m_iLCD_HEIGHT + 1) ? m_iLCD_HEIGHT - 1 : a;
+    //a = ( (a + g_CorrectionOffset) * VREF[(int)m_Range] + 512) >> 10;
+    a = (a * VREF[(int)m_Range]) >> 10; //0 - range [0 - 150]
+    //a >>= 10;
+    //a >>= 10;
+    //a >>= 10;
+    //a >>= 10;
+    a = VREF[(int)m_Range] - a;
+    a = a >= (m_iLCD_HEIGHT + 61) ? m_iLCD_HEIGHT - 1 : a;
+   
+/*
+    for (int y = 10; y < 20; y += 2) {
+        tft.drawLine(10, y, 50, y, BGCOLOR);
+        tft.drawLine(10, y + 1, 50, y + 1, BGCOLOR);
+    }
+
+    tft.setCursor(10, 10);
+    char *buff = (char*)malloc(12);
+    sprintf(buff, "%d", a);
+    tft.print(buff);
+    free(buff);
+    */
+    //a = a <= 0 ? -90 : a - 90;
     if (m_Mode == MODE_INV)
         return m_iLCD_HEIGHT - a;
     return a;
 }
 
 static short g_WaveTable[2][SAMPLES];
+//static byte g_XWaveTable[2][SAMPLES];
 
 void Oscilloscope::ClearAndDrawDot(int i) {
     
     if (i <= 1)
         return;
-    
-    tft.drawLine(i - 1, m_iLCD_HEIGHT - g_WaveTable[1][i - 1], i, m_iLCD_HEIGHT - g_WaveTable[1][i], BGCOLOR);
-    if (m_Mode != MODE_OFF)
-        tft.drawLine(i - 1, m_iLCD_HEIGHT - g_WaveTable[0][i - 1], i, m_iLCD_HEIGHT - g_WaveTable[0][i], CH1COLOR);
 
-    //DrawGrid(i);
+    tft.drawLine(i - 1, g_WaveTable[1][i - 1] + 60, i, g_WaveTable[1][i] + 60, BGCOLOR);
+    if (m_Mode != MODE_OFF)
+       tft.drawLine(i - 1, g_WaveTable[0][i - 1] + 60, i, g_WaveTable[0][i] + 60, CH1COLOR);
+    //tft.drawLine(    g_XWaveTable[1][i - 1], g_WaveTable[1][i - 1] + 60, g_XWaveTable[1][i], g_WaveTable[1][i] + 60, RED);
+   // if (m_Mode != MODE_OFF)
+   //     tft.drawLine(g_XWaveTable[0][i - 1], g_WaveTable[0][i - 1] + 60, g_XWaveTable[0][i], g_WaveTable[0][i] + 60, CH1COLOR);
+
 }
 
 
 void Oscilloscope::Process(){
     m_UI.ProcessButtons();
-    delay(10);
+    delay(2);
+    m_UI.DrawGrid();
     for(int i = 0; i < SAMPLES; i++){
         g_WaveTable[0][i] = getTransformedVoltage(ad_ch1);
-    }
+        //g_XWaveTable[0][i] = x;
+        //g_XWaveTable[1][i] = g_XWaveTable[0][i];
+    }    
     for(int i = 0; i < SAMPLES; i++){
         ClearAndDrawDot(i);
     }
     for(int i = 0; i < SAMPLES; i++){
         g_WaveTable[1][i] = g_WaveTable[0][i];
     }
-    
 }
