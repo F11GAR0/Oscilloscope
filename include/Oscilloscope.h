@@ -131,8 +131,9 @@ class Oscilloscope{
         void LoadUI();
         void Process();
     private:
-        void ClearAndDrawDot(int i);
-
+        inline void DrawDot(int32_t i);
+        inline void ClearDot(int32_t i);
+        void DrawDebugStr(char *str);
         friend void TriggerModeChange(Oscilloscope*);
         friend void ModeChange(Oscilloscope*);
         friend void RateChange(Oscilloscope*);

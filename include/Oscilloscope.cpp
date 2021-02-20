@@ -16,6 +16,13 @@ const unsigned long VRATES[] = { 1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 20
 
 const int g_CorrectionOffset = 204;
 
+static short g_HistoryWaveTable[SAMPLES];
+static int g_iHistoryWavePartCount = 0;
+
+static short g_WaveTable[SAMPLES];
+static int32_t g_iWavePartCount = 0;
+
+
 OsciButton::OsciButton(){ }
 
 int strlen(char *str){
@@ -230,7 +237,7 @@ void Oscilloscope::Init(int dots_div, int lcd_width, int lcd_height){
     m_TriggerMode = 0;
     m_Mode = 0;
     m_Rate = RATE_20MS;
-    m_Range = 0;
+    m_Range = RANGE_01V;
     m_Edge = 0;
     m_iDotsDiv = dots_div;
     m_iLCD_WIDTH = lcd_width;
@@ -271,6 +278,12 @@ void ModeChange(Oscilloscope* self){
 }
 
 void RateChange(Oscilloscope* self){
+    for(int i = 0; i < SAMPLES; i++){
+        g_WaveTable[i] = 0;
+        g_HistoryWaveTable[i] = 0;
+        g_iWavePartCount = 0;
+        g_iHistoryWavePartCount = 0;
+    }
     switch(self->m_Rate){
         case RATE_F11:
             self->m_Rate = RATE_F12;
@@ -362,64 +375,72 @@ void Oscilloscope::LoadUI(){
 
 inline unsigned long Oscilloscope::getTransformedVoltage(byte channel){
     unsigned long a = analogRead(channel);
-    //a = ( (a + g_CorrectionOffset) * VREF[(int)m_Range] + 512) >> 10;
+
     a = (a * VREF[(int)m_Range]) >> 10; //0 - range [0 - 150]
-    //a >>= 10;
-    //a >>= 10;
-    //a >>= 10;
-    //a >>= 10;
+
     a = VREF[(int)m_Range] - a;
     a = a >= (m_iLCD_HEIGHT + 61) ? m_iLCD_HEIGHT - 1 : a;
-   
-/*
-    for (int y = 10; y < 20; y += 2) {
-        tft.drawLine(10, y, 50, y, BGCOLOR);
-        tft.drawLine(10, y + 1, 50, y + 1, BGCOLOR);
-    }
 
-    tft.setCursor(10, 10);
-    char *buff = (char*)malloc(12);
-    sprintf(buff, "%d", a);
-    tft.print(buff);
-    free(buff);
-    */
-    //a = a <= 0 ? -90 : a - 90;
     if (m_Mode == MODE_INV)
         return m_iLCD_HEIGHT - a;
     return a;
 }
 
-static short g_WaveTable[2][SAMPLES];
-//static byte g_XWaveTable[2][SAMPLES];
+void Oscilloscope::DrawDebugStr(char *str){
+    for (int y = 10; y < 20; y += 2) {
+        tft.drawLine(10, y, 120, y, BGCOLOR);
+        tft.drawLine(10, y + 1, 120, y + 1, BGCOLOR);
+    }
+    tft.drawString(10, 10, str, RED, 1);
+}
 
-void Oscilloscope::ClearAndDrawDot(int i) {
+inline void Oscilloscope::ClearDot(int32_t i){
+    if (i <= 1)
+        return;
+    int32_t x1 = ((i - 1) * SAMPLES) / g_iHistoryWavePartCount;
+    int32_t x2 = (i * SAMPLES) / g_iHistoryWavePartCount;
+
+    tft.drawLine(x1, g_HistoryWaveTable[i - 1] + 60, x2, g_HistoryWaveTable[i] + 60, BGCOLOR);
+}
+
+inline void Oscilloscope::DrawDot(int32_t i) {
     
     if (i <= 1)
         return;
-
-    tft.drawLine(i - 1, g_WaveTable[1][i - 1] + 60, i, g_WaveTable[1][i] + 60, BGCOLOR);
+    int32_t x1 = (i - 1) * SAMPLES / g_iWavePartCount;
+    int32_t x2 = i * SAMPLES / g_iWavePartCount;
     if (m_Mode != MODE_OFF)
-       tft.drawLine(i - 1, g_WaveTable[0][i - 1] + 60, i, g_WaveTable[0][i] + 60, CH1COLOR);
-    //tft.drawLine(    g_XWaveTable[1][i - 1], g_WaveTable[1][i - 1] + 60, g_XWaveTable[1][i], g_WaveTable[1][i] + 60, RED);
-   // if (m_Mode != MODE_OFF)
-   //     tft.drawLine(g_XWaveTable[0][i - 1], g_WaveTable[0][i - 1] + 60, g_XWaveTable[0][i], g_WaveTable[0][i] + 60, CH1COLOR);
-
+       tft.drawLine(x1, g_WaveTable[i - 1] + 60, x2, g_WaveTable[i] + 60, CH1COLOR);
 }
 
-
 void Oscilloscope::Process(){
-    m_UI.ProcessButtons();
-    delay(2);
-    m_UI.DrawGrid();
+    m_UI.ProcessButtons(); 
     for(int i = 0; i < SAMPLES; i++){
-        g_WaveTable[0][i] = getTransformedVoltage(ad_ch1);
-        //g_XWaveTable[0][i] = x;
-        //g_XWaveTable[1][i] = g_XWaveTable[0][i];
+        g_WaveTable[i] = getTransformedVoltage(ad_ch1);
+        g_iWavePartCount++;
+        if((int)m_Rate > 6){
+            static unsigned long time = millis();
+            unsigned long tick = millis();
+            if(time + VRATES[(int)m_Rate] < tick){
+                time = tick;
+                break;
+            }
+        }
+        int32_t predelay = VRATES[(int)m_Rate] / SAMPLES;
+        if(predelay > 0)
+            delay(predelay);
     }    
-    for(int i = 0; i < SAMPLES; i++){
-        ClearAndDrawDot(i);
+    for(int i = 0; i < g_iHistoryWavePartCount; i++){
+        ClearDot(i);
     }
+    m_UI.DrawGrid();
+    for(int i = 0; i < g_iWavePartCount; i++){
+        DrawDot(i);
+    }
+
+    g_iHistoryWavePartCount = g_iWavePartCount;
+    g_iWavePartCount = 0;
     for(int i = 0; i < SAMPLES; i++){
-        g_WaveTable[1][i] = g_WaveTable[0][i];
+        g_HistoryWaveTable[i] = g_WaveTable[i];
     }
 }
