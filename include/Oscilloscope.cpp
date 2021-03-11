@@ -7,21 +7,17 @@ const char *g_szTriggerModes[] = {" Auto", " Norm", " Scan", " One"};
 const char *g_szRates[] = {"F1-1", "F1-2 ", "F2  ", "5ms", "10ms", "20ms", "50ms", "0.1s", "0.2s", "0.5s", "1s", "2s", "5s", "10s"};
 const char *g_szRanges[] = {"1V ", "0.5V", "0.2V", "0.1V", "50mV"};
 
-const int ad_sw =  3;                    // Analog 3 pin for switches
-const int ad_ch0 = 4;                   // Analog 4 pin for channel 0
-const int ad_ch1 = 5;                   // Analog 5 pin for channel 1
+const byte ad_sw =  3;                    // Analog 3 pin for switches
+const byte ad_ch0 = 4;                   // Analog 4 pin for channel 0
+const byte ad_ch1 = 5;                   // Analog 5 pin for channel 1
 
-const unsigned long VREF[] = {150, 300, 750, 1500, 3000};
-const unsigned long VRATES[] = { 1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000};
+const unsigned short VREF[] = {150, 300, 750, 1500, 3000};
+const unsigned short VRATES[] = { 1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000};
 
-const int g_CorrectionOffset = 204;
+const byte g_CorrectionOffset = 204;
 
 static short g_HistoryWaveTable[SAMPLES];
-static int g_iHistoryWavePartCount = 0;
-
 static short g_WaveTable[SAMPLES];
-static int32_t g_iWavePartCount = 0;
-
 
 OsciButton::OsciButton(){ }
 
@@ -281,8 +277,8 @@ void RateChange(Oscilloscope* self){
     for(int i = 0; i < SAMPLES; i++){
         g_WaveTable[i] = 0;
         g_HistoryWaveTable[i] = 0;
-        g_iWavePartCount = 0;
-        g_iHistoryWavePartCount = 0;
+        //g_iWavePartCount = 0;
+        //g_iHistoryWavePartCount = 0;
     }
     switch(self->m_Rate){
         case RATE_F11:
@@ -394,25 +390,15 @@ void Oscilloscope::DrawDebugStr(char *str){
     tft.drawString(10, 10, str, RED, 1);
 }
 
-inline void Oscilloscope::ClearDot(int32_t i){
-    if (i <= 1)
-        return;
-    int32_t x1 = ((i - 1) * SAMPLES) / g_iHistoryWavePartCount;
-    int32_t x2 = (i * SAMPLES) / g_iHistoryWavePartCount;
-
-    tft.drawLine(x1, g_HistoryWaveTable[i - 1] + 60, x2, g_HistoryWaveTable[i] + 60, BGCOLOR);
-}
-
-inline void Oscilloscope::DrawDot(int32_t i) {
+inline void Oscilloscope::ClearAndDrawDot(int32_t i){
     
     if (i <= 1)
         return;
-    int32_t x1 = (i - 1) * SAMPLES / g_iWavePartCount;
-    int32_t x2 = i * SAMPLES / g_iWavePartCount;
+    tft.drawLine(i - 1, g_HistoryWaveTable[i - 1] + 60, i, g_HistoryWaveTable[i] + 60, BGCOLOR);
     if (m_Mode != MODE_OFF)
-       tft.drawLine(x1, g_WaveTable[i - 1] + 60, x2, g_WaveTable[i] + 60, CH1COLOR);
+       tft.drawLine(i - 1, g_WaveTable[i - 1] + 60, i, g_WaveTable[i] + 60, CH1COLOR);
 }
-
+/*
 void Oscilloscope::Process(){
     m_UI.ProcessButtons(); 
     for(int i = 0; i < SAMPLES; i++){
@@ -433,13 +419,88 @@ void Oscilloscope::Process(){
     for(int i = 0; i < g_iHistoryWavePartCount; i++){
         ClearDot(i);
     }
-    m_UI.DrawGrid();
+    //m_UI.DrawGrid();
     for(int i = 0; i < g_iWavePartCount; i++){
         DrawDot(i);
     }
 
     g_iHistoryWavePartCount = g_iWavePartCount;
     g_iWavePartCount = 0;
+    for(int i = 0; i < SAMPLES; i++){
+        g_HistoryWaveTable[i] = g_WaveTable[i];
+    }
+}
+*/
+
+void Oscilloscope::Process(){
+    m_UI.ProcessButtons(); 
+
+    switch(m_Rate){
+        case RATE_F11: // only first channel
+        case RATE_F12: // dual channel
+        case RATE_F2: // second channel
+        {
+            for(int i = 0; i < SAMPLES; i++){ //just do samples
+                g_WaveTable[i] = getTransformedVoltage(ad_ch1);
+            }
+            break;
+        }
+        case RATE_5MS:
+        case RATE_10MS:
+        case RATE_20MS:
+        {
+            const unsigned long r_[] = { 5000 / m_iDotsDiv, 10000 / m_iDotsDiv, 20000 / m_iDotsDiv };
+            unsigned long st0 = millis();
+            unsigned long st = micros();
+            unsigned long r = r_[(int)m_Rate - 3];
+            for (int i = 0; i < SAMPLES; i++) {
+                while((st - micros()) < r) ;
+                st += r;
+                g_WaveTable[i] = getTransformedVoltage(ad_ch1);
+            }
+            break;
+        }
+        case RATE_50MS: // 6 
+        case RATE_01S:
+        case RATE_02S:
+        case RATE_05S:
+        case RATE_1S:
+        case RATE_2S:
+        case RATE_5S:
+        case RATE_10S:
+        {
+            m_UI.DrawGrid();
+            const unsigned long r_[] = {50000/m_iDotsDiv, 100000/m_iDotsDiv, 200000/m_iDotsDiv,
+                      500000/m_iDotsDiv, 1000000/m_iDotsDiv, 2000000/m_iDotsDiv,
+                      5000000/m_iDotsDiv, 10000000/m_iDotsDiv};
+            unsigned long st0 = millis();
+            unsigned long st = micros();
+            for (int i = 0; i < SAMPLES; i++) {
+                while((st - micros()) < r_[(int)m_Rate - 6]) {
+                    m_UI.ProcessButtons(); 
+                    if ((int)m_Rate < 6)
+                        break;
+                }
+                if ((int)m_Rate < 6) { // sampling rate has been changed
+                    m_UI.DrawGrid();
+                    break;
+                }
+                st += r_[(int)m_Rate - 6];
+                if (st - micros() > r_[(int)m_Rate - 6])
+                    st = micros(); // sampling rate has been changed to shorter interval
+                g_WaveTable[i] = getTransformedVoltage(ad_ch1);
+                ClearAndDrawDot(i);     
+            }
+            for(int i = 0; i < SAMPLES; i++){
+                g_HistoryWaveTable[i] = g_WaveTable[i];
+            }
+            return;
+        }
+    }   
+    m_UI.DrawGrid();
+    for(int i = 0; i < SAMPLES; i++){
+        ClearAndDrawDot(i);
+    }
     for(int i = 0; i < SAMPLES; i++){
         g_HistoryWaveTable[i] = g_WaveTable[i];
     }
