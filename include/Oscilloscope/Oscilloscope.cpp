@@ -1,4 +1,5 @@
 #include "Oscilloscope.h"
+#include "CyberLib.h"
 
 TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
@@ -19,7 +20,13 @@ const byte g_CorrectionOffset = 204;
 static short g_HistoryWaveTable[SAMPLES];
 static short g_WaveTable[SAMPLES];
 
+uint16_t g_Register;
+
 OsciButton::OsciButton(){ }
+
+void osci_delay(uint16_t ms){
+    delay(ms << 8);
+}
 
 int strlen(char *str){
     int len = 0;
@@ -76,7 +83,7 @@ void OsciButton::Process(){
                 if(m_bIsCallbackRegistered == true) 
                     m_cbCallback((void*)m_pOscilloscope);
                 DrawClicked();
-                delay(60);
+                osci_delay(60);
                 DrawBasics();
             }
         }
@@ -95,6 +102,8 @@ void OscilloscopeUI::Init(long *oscip, int dots_div, int lcd_width, int lcd_heig
     
     m_pOscilloscope = oscip;
 
+    g_Register = tft.readRegister((uint16_t)0x0);
+
     tft.initDisplay();
     //fill screen with black
     for (int y=0; y < 239; y += 2) {
@@ -102,11 +111,13 @@ void OscilloscopeUI::Init(long *oscip, int dots_div, int lcd_width, int lcd_heig
         tft.drawLine(0, y + 1, m_iLCD_WIDTH, y + 1, BGCOLOR);
     }
 
+#ifdef __BETA_FUNCTIONS
     m_TriggerModeChangeButton.Init(m_pOscilloscope, m_iTFStartXPos + 30, 80, 20, 20, RED, "T");
     m_ModeChangeButton.Init(m_pOscilloscope, m_iTFStartXPos + 30,        110, 20, 20, RED, "M");
+    m_EdgeChangeButton.Init(m_pOscilloscope, m_iTFStartXPos + 30,        200, 20, 20, RED, "E");
+#endif
     m_RateChangeButton.Init(m_pOscilloscope, m_iTFStartXPos + 30,        140, 20, 20, RED, "RT");
     m_RangeChangeButton.Init(m_pOscilloscope, m_iTFStartXPos + 30,       170, 20, 20, RED, "RG");
-    m_EdgeChangeButton.Init(m_pOscilloscope, m_iTFStartXPos + 30,        200, 20, 20, RED, "E");
 }
 
 void OscilloscopeUI::SetChangeTriggerModeCallback(OsciButtonCallback cb){
@@ -179,8 +190,10 @@ void OscilloscopeUI::UpdateTextField(bool only_states, OsciTriggerMode trigger_m
 
     if(only_states){
         m_iTFCurrentYPos = temp_y;
+#ifdef __BETA_FUNCTIONS
         m_TriggerModeChangeButton.DrawBasics();
         m_ModeChangeButton.DrawBasics();
+#endif  
         m_RateChangeButton.DrawBasics();
         m_RangeChangeButton.DrawBasics();
     } else {
@@ -190,11 +203,14 @@ void OscilloscopeUI::UpdateTextField(bool only_states, OsciTriggerMode trigger_m
         AddTextToTextField(" 4V ", 1, MAGENTA, 1, 30);
         AddTextToTextField(" 5V ", 1, MAGENTA, 1, 30);
 
+#ifdef __BETA_FUNCTIONS
         m_TriggerModeChangeButton.DrawBasics();
         m_ModeChangeButton.DrawBasics();
+        m_EdgeChangeButton.DrawBasics();
+#endif
         m_RateChangeButton.DrawBasics();
         m_RangeChangeButton.DrawBasics();
-        m_EdgeChangeButton.DrawBasics();
+        
     }
 }
 
@@ -274,12 +290,12 @@ void ModeChange(Oscilloscope* self){
 }
 
 void RateChange(Oscilloscope* self){
-    for(int i = 0; i < SAMPLES; i++){
-        g_WaveTable[i] = 0;
-        g_HistoryWaveTable[i] = 0;
+    //for(int i = 0; i < SAMPLES; i++){
+     //   g_WaveTable[i] = 0;
+     //   g_HistoryWaveTable[i] = 0;
         //g_iWavePartCount = 0;
         //g_iHistoryWavePartCount = 0;
-    }
+    //}
     switch(self->m_Rate){
         case RATE_F11:
             self->m_Rate = RATE_F12;
@@ -370,7 +386,8 @@ void Oscilloscope::LoadUI(){
 }
 
 inline unsigned long Oscilloscope::getTransformedVoltage(byte channel){
-    unsigned long a = analogRead(channel);
+    //unsigned long a = analogRead(channel);
+    unsigned long a = A5_Read;
 
     a = (a * VREF[(int)m_Range]) >> 10; //0 - range [0 - 150]
 
@@ -387,7 +404,10 @@ void Oscilloscope::DrawDebugStr(char *str){
         tft.drawLine(10, y, 120, y, BGCOLOR);
         tft.drawLine(10, y + 1, 120, y + 1, BGCOLOR);
     }
-    tft.drawString(10, 10, str, RED, 1);
+    tft.setTextColor(RED);
+    tft.setTextSize(1);
+    tft.setCursor(10, 10);
+    tft.print(str);
 }
 
 inline void Oscilloscope::ClearAndDrawDot(int32_t i){
@@ -434,7 +454,7 @@ void Oscilloscope::Process(){
 
 void Oscilloscope::Process(){
     m_UI.ProcessButtons(); 
-
+    
     switch(m_Rate){
         case RATE_F11: // only first channel
         case RATE_F12: // dual channel
@@ -504,4 +524,10 @@ void Oscilloscope::Process(){
     for(int i = 0; i < SAMPLES; i++){
         g_HistoryWaveTable[i] = g_WaveTable[i];
     }
+    //char *dbgs = (char*)malloc(32);
+    //sprintf("0x%X", g_Register);
+    //DrawDebugStr(dbgs);
+    //free(dbgs);
+    //delay(4000);
+
 }

@@ -15,6 +15,9 @@
 // comment or uncomment the next line for special pinout!
 //#define USE_ADAFRUIT_SHIELD_PINOUT
 
+void BD_as_input(void);
+void BD_as_output(void);
+
 class TFTLCD : public Print {
  public:
   TFTLCD(uint8_t cs, uint8_t cd, uint8_t wr, uint8_t rd, uint8_t reset);

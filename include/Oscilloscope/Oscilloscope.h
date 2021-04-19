@@ -2,11 +2,15 @@
 #define __OSCILLOSCOPE_H__
 #include "TFTLCD.h"
 
+//#define __BETA_FUNCTIONS
+
 #define LCD_CS A3
 #define LCD_CD A2
 #define LCD_WR A1
 #define LCD_RD A0
 #define LCD_RESET A4
+
+
 
 #define SAMPLES 260
 #define BLACK   0x0000
